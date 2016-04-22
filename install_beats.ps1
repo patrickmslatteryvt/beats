@@ -1,4 +1,5 @@
 # Powershell script to install the Elastic Beats collectors on Windows systems
+# Tested on Windows 2008 R2 and 2012 R2
 # Call like this:
 # mkdir C:\scripts
 # Start-BitsTransfer -Source https://raw.githubusercontent.com/patrickmslatteryvt/beats/master/install_beats.ps1 -Destination "C:\scripts"
@@ -10,9 +11,11 @@ param (
    [string]$version = "1.2.1"
 )
 
-$filebeat_yml = "C:\Program Files\Elastic\filebeat\filebeat.yml"
-$winlogbeat_yml = "C:\Program Files\Elastic\winlogbeat\winlogbeat.yml"
-$topbeat_yml = "C:\Program Files\Elastic\topbeat\topbeat.yml"
+$install_dir = "C:\Program Files\Elastic"
+$filebeat_yml = "$install_dir\filebeat\filebeat.yml"
+$winlogbeat_yml = "$install_dir\winlogbeat\winlogbeat.yml"
+$topbeat_yml = "$install_dir\topbeat\topbeat.yml"
+$url_base = "https://download.elastic.co/beats"
 
 # Function to unzip files (Is built-in in PS v5)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -22,11 +25,12 @@ function Expand-Archive { param([string]$zipfile, [string]$outpath) [System.IO.C
 New-Item -path "C:\Program Files\" -name "Elastic" -type directory
 
 # Install and enable Filebeat
-Start-BitsTransfer -Source https://download.elastic.co/beats/filebeat/filebeat-$version-windows.zip -Destination "C:\Program Files\Elastic"
-Expand-Archive "C:\Program Files\Elastic\filebeat-$version-windows.zip" "C:\Program Files\Elastic"
-Remove-Item "C:\Program Files\Elastic\filebeat-$version-windows.zip"
-Rename-Item -path "C:\Program Files\Elastic\filebeat-$version-windows" -newName "filebeat"
+Start-BitsTransfer -Source $url_base/filebeat/filebeat-$version-windows.zip -Destination $install_dir
+Expand-Archive "$install_dir\filebeat-$version-windows.zip" $install_dir
+Remove-Item "$install_dir\filebeat-$version-windows.zip"
+Rename-Item -path "$install_dir\filebeat-$version-windows" -newName "filebeat"
 Rename-Item -path $filebeat_yml -newName "filebeat.yml.original"
+# Write a new very minimal config file
 Set-Content -Value 'filebeat:' -Path $filebeat_yml
 Add-Content -Value '  prospectors:' -Path $filebeat_yml
 Add-Content -Value '    -' -Path $filebeat_yml
@@ -47,40 +51,41 @@ Add-Content -Value 'logging:' -Path $filebeat_yml
 Add-Content -Value '  files:' -Path $filebeat_yml
 Add-Content -Value '    rotateeverybytes: 10485760 # = 10MB' -Path $filebeat_yml
 Rename-Item -path $filebeat_yml -newName "filebeat.yml.temp"
-$oldfile = "C:\Program Files\Elastic\filebeat\filebeat.yml.temp"
+$oldfile = "$install_dir\filebeat\filebeat.yml.temp"
 $newfile = $filebeat_yml
 $text = (Get-Content -Path $oldfile -ReadCount 0) -join "`n"
-# Insert the correct FQDN to the RELK forwarder here
 $text -replace 'localhost', $forwarder | Set-Content -Path $newfile
-Remove-Item "C:\Program Files\Elastic\filebeat\filebeat.yml.temp"
-cd "C:\Program Files\Elastic\filebeat"
+Remove-Item "$install_dir\filebeat\filebeat.yml.temp"
+# Create the service using the provided install script
+cd "$install_dir\filebeat"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-filebeat.ps1
+# Set service start parameters and start the service
 Set-Service filebeat -startuptype automatic
 Start-Service -name filebeat
 
 # Install and enable Winlogbeat
-Start-BitsTransfer -Source https://download.elastic.co/beats/winlogbeat/winlogbeat-$version-windows.zip -Destination "C:\Program Files\Elastic"
-Expand-Archive "C:\Program Files\Elastic\winlogbeat-$version-windows.zip" "C:\Program Files\Elastic"
-Remove-Item "C:\Program Files\Elastic\winlogbeat-$version-windows.zip"
-Rename-Item -path "C:\Program Files\Elastic\winlogbeat-$version-windows" -newName "winlogbeat"
-Rename-Item -path "C:\Program Files\Elastic\winlogbeat\winlogbeat.yml" -newName "winlogbeat.yml.original"
-$oldfile = "C:\Program Files\Elastic\winlogbeat\winlogbeat.yml.original"
-$newfile = "C:\Program Files\Elastic\winlogbeat\winlogbeat.yml"
+Start-BitsTransfer -Source $url_base/winlogbeat/winlogbeat-$version-windows.zip -Destination $install_dir
+Expand-Archive "$install_dir\winlogbeat-$version-windows.zip" $install_dir
+Remove-Item "$install_dir\winlogbeat-$version-windows.zip"
+Rename-Item -path "$install_dir\winlogbeat-$version-windows" -newName "winlogbeat"
+Rename-Item -path "$install_dir\winlogbeat\winlogbeat.yml" -newName "winlogbeat.yml.original"
+# Search and replace the forwarder value
+$oldfile = "$install_dir\winlogbeat\winlogbeat.yml.original"
+$newfile = "$install_dir\winlogbeat\winlogbeat.yml"
 $text = (Get-Content -Path $oldfile -ReadCount 0) -join "`n"
-# Put the correct FQDN to the RELK forwarder here
 $text -replace 'localhost', $forwarder | Set-Content -Path $newfile
-cd "C:\Program Files\Elastic\winlogbeat"
+cd "$install_dir\winlogbeat"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
 Set-Service winlogbeat -startuptype automatic
 Start-Service -name winlogbeat
 
 # Install but disable topbeat
-Start-BitsTransfer -Source https://download.elastic.co/beats/topbeat/topbeat-$version-windows.zip -Destination "C:\Program Files\Elastic"
-Expand-Archive "C:\Program Files\Elastic\topbeat-$version-windows.zip" "C:\Program Files\Elastic"
-Remove-Item "C:\Program Files\Elastic\topbeat-$version-windows.zip"
-Rename-Item -path "C:\Program Files\Elastic\topbeat-$version-windows" -newName "topbeat"
+Start-BitsTransfer -Source $url_base/topbeat/topbeat-$version-windows.zip -Destination $install_dir
+Expand-Archive "$install_dir\topbeat-$version-windows.zip" $install_dir
+Remove-Item "$install_dir\topbeat-$version-windows.zip"
+Rename-Item -path "$install_dir\topbeat-$version-windows" -newName "topbeat"
 ### Need to write out the YAML file here
-cd "C:\Program Files\Elastic\topbeat"
+cd "$install_dir\topbeat"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-topbeat.ps1
 Set-Service topbeat -startuptype disabled
 Stop-Service -name topbeat
