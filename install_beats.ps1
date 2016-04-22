@@ -40,6 +40,7 @@ filebeat:
         - L:\*\*\*.log
       input_type: log
       document_type: IIS
+      exclude_lines: ['^#']
   registry_file: "C:/ProgramData/filebeat/registry"
 output:
   elasticsearch:
