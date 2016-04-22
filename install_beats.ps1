@@ -15,6 +15,9 @@ param (
    [string]$version = "1.2.1"
 )
 
+# Import BitsTransfer
+Import-Module BitsTransfer
+
 # Set some default values
 $install_dir = "C:\Program Files\Elastic"
 $filebeat_yml = "$install_dir\filebeat\filebeat.yml"
