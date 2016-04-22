@@ -36,6 +36,7 @@ filebeat:
         - L:\*\*.log
         - L:\*\*\*.log
       input_type: log
+      document_type: IIS
   registry_file: "C:/ProgramData/filebeat/registry"
 output:
   elasticsearch:
