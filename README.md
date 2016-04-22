@@ -9,6 +9,6 @@ Use like this:<br>
 mkdir C:\scripts
 Start-BitsTransfer -Source https://raw.githubusercontent.com/patrickmslatteryvt/beats/master/install_beats.ps1 -Destination "C:\scripts"
 cd C:\scripts
-PowerShell.exe -ExecutionPolicy UnRestricted -File .\install_beats.ps1 [-version 1.2.1] [-forwarder forwarder.internal.domain.com:9200]
+PowerShell.exe -ExecutionPolicy UnRestricted -File .\install_beats.ps1 [-version 1.2.1] [-filebeat_forwarder forwarder.internal.domain.com:9200] [-winlogbeat_forwarder forwarder.internal.domain.com:9100] [-topbeat_forwarder forwarder.internal.domain.com:7177]
 ```
 Where the args in the brackets are optional
