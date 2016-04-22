@@ -4,11 +4,14 @@
 # mkdir C:\scripts
 # Start-BitsTransfer -Source https://raw.githubusercontent.com/patrickmslatteryvt/beats/master/install_beats.ps1 -Destination "C:\scripts"
 # cd C:\scripts
-# PowerShell.exe -ExecutionPolicy UnRestricted -File .\install_beats.ps1 [-version 1.2.1] [-forwarder forwarder.internal.domain.com:9200]
+# PowerShell.exe -ExecutionPolicy UnRestricted -File .\install_beats.ps1 [-version 1.2.1] [-filebeat_forwarder forwarder.internal.domain.com:9200] [-winlogbeat_forwarder forwarder.internal.domain.com:9100] [-topbeat_forwarder forwarder.internal.domain.com:7177]
+# Args in brackets [] are optional
 
 # Default parameters to use in the case that the user did not pass in any args on the CLI
 param (
-   [string]$forwarder = "forwarder.internal.domain.com:9200",
+   [string]$filebeat_forwarder = "forwarder.internal.domain.com:9200",
+   [string]$winlogbeat_forwarder = "forwarder.internal.domain.com:9100",
+   [string]$topbeat_forwarder = "forwarder.internal.domain.com:7177",
    [string]$version = "1.2.1"
 )
 
@@ -29,18 +32,46 @@ filebeat:
   prospectors:
     -
       paths:
+# Watch all the IIS log files on the L: drive
         - L:\*\*.log
         - L:\*\*\*.log
       input_type: log
   registry_file: "C:/ProgramData/filebeat/registry"
 output:
   elasticsearch:
-    hosts: ["$forwarder"]
+    hosts: ["$filebeat_forwarder"]
 shipper:
 logging:
   files:
     rotateeverybytes: 10485760 # = 10MB
 "@ | Set-Content $filebeat_yml -encoding UTF8}
+
+# Cleanly write out the new Topbeat Yaml config file
+Function CreateTopbeatYmlFile {@"
+input:
+  # In seconds, defines how often to read server statistics
+  period: 10
+  # Regular expression to match the processes that are monitored
+  # By default, all the processes are monitored
+  procs: [".*"]
+  # Statistics to collect (all enabled by default)
+  stats:
+    system: true
+    proc: true
+    filesystem: true
+output:
+  logstash:
+    hosts: ["$topbeat_forwarder"]
+    max-retries: 0
+logging:
+  level: info
+  # enable file rotation with default configuration
+  to_files: true
+  # do not log to syslog
+  to_syslog: false
+  files:
+    keepfiles: 7
+"@ | Set-Content $topbeat_yml -encoding UTF8}
 
 # Create an install directory
 New-Item -path "C:\Program Files\" -name "Elastic" -type directory
@@ -48,47 +79,53 @@ New-Item -path "C:\Program Files\" -name "Elastic" -type directory
 ################################################################################
 
 # Install and enable Filebeat
-Start-BitsTransfer -Source $url_base/filebeat/filebeat-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\filebeat-$version-windows.zip" $install_dir
-Remove-Item "$install_dir\filebeat-$version-windows.zip"
-Rename-Item -path "$install_dir\filebeat-$version-windows" -newName "filebeat"
-Rename-Item -path $filebeat_yml -newName "filebeat.yml.original"
+$service = "filebeat"
+Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
+Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Remove-Item "$install_dir\$service-$version-windows.zip"
+Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
+Rename-Item -path $filebeat_yml -newName "$service.yml.original"
 # Create a new very minimal config file
 CreateFilebeatYmlFile
 # Create the service using the provided install script
-cd "$install_dir\filebeat"
-PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-filebeat.ps1
+cd "$install_dir\$service"
+PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-$service.ps1
 # Set service start parameters and start the service
-Set-Service filebeat -startuptype automatic
-Start-Service -name filebeat
+Set-Service $service -startuptype automatic
+Start-Service -name $service
 
 ################################################################################
 
 # Install and enable Winlogbeat
-Start-BitsTransfer -Source $url_base/winlogbeat/winlogbeat-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\winlogbeat-$version-windows.zip" $install_dir
-Remove-Item "$install_dir\winlogbeat-$version-windows.zip"
-Rename-Item -path "$install_dir\winlogbeat-$version-windows" -newName "winlogbeat"
-Rename-Item -path "$install_dir\winlogbeat\winlogbeat.yml" -newName "winlogbeat.yml.original"
+$service = "winlogbeat"
+Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
+Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Remove-Item "$install_dir\$service-$version-windows.zip"
+Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
+Rename-Item -path $winlogbeat_yml -newName "$service.yml.original"
+
 # Search and replace the forwarder value
 $oldfile = "$install_dir\winlogbeat\winlogbeat.yml.original"
 $newfile = "$install_dir\winlogbeat\winlogbeat.yml"
 $text = (Get-Content -Path $oldfile -ReadCount 0) -join "`n"
-$text -replace 'localhost', $forwarder | Set-Content -Path $newfile
-cd "$install_dir\winlogbeat"
-PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
-Set-Service winlogbeat -startuptype automatic
-Start-Service -name winlogbeat
+$text -replace 'localhost:9200', $winlogbeat_forwarder | Set-Content -Path $newfile
+
+cd "$install_dir\$service"
+PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-$service.ps1
+Set-Service $service -startuptype automatic
+Start-Service -name $service
 
 ################################################################################
 
 # Install but disable topbeat
-Start-BitsTransfer -Source $url_base/topbeat/topbeat-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\topbeat-$version-windows.zip" $install_dir
-Remove-Item "$install_dir\topbeat-$version-windows.zip"
-Rename-Item -path "$install_dir\topbeat-$version-windows" -newName "topbeat"
-### Need to write out the YAML file here
-cd "$install_dir\topbeat"
-PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-topbeat.ps1
-Set-Service topbeat -startuptype disabled
-Stop-Service -name topbeat
+$service = "topbeat"
+Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
+Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Remove-Item "$install_dir\$service-$version-windows.zip"
+Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
+Rename-Item -path $topbeat_yml -newName "$service.yml.original"
+CreateTopbeatYmlFile
+cd "$install_dir\$service"
+PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-$service.ps1
+Set-Service $service -startuptype disable
+# Start-Service -name $service
