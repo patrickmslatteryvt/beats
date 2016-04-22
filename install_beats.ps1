@@ -68,8 +68,7 @@ $oldfile = "C:\Program Files\Elastic\winlogbeat\winlogbeat.yml.original"
 $newfile = "C:\Program Files\Elastic\winlogbeat\winlogbeat.yml"
 $text = (Get-Content -Path $oldfile -ReadCount 0) -join "`n"
 # Put the correct FQDN to the RELK forwarder here
-$text -replace 'localhost:9200', 'relkfwdofg.internal.mywebgrocer.com:9200' | Set-Content -Path $newfile
-$text -replace 'localhost:9200', "$(Get-Date):9200" | Set-Content -Path $newfile
+$text -replace 'localhost', $forwarder | Set-Content -Path $newfile
 cd "C:\Program Files\Elastic\winlogbeat"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-winlogbeat.ps1
 Set-Service winlogbeat -startuptype automatic
