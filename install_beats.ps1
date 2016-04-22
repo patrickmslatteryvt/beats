@@ -47,6 +47,7 @@ output:
     hosts: ["$filebeat_forwarder"]
 shipper:
 logging:
+  level: info
   files:
     rotateeverybytes: 10485760 # = 10MB
 "@ | Set-Content $filebeat_yml -encoding UTF8}
