@@ -54,7 +54,7 @@ filebeat:
       exclude_lines: ['^#']
   registry_file: "C:/ProgramData/filebeat/registry"
 output:
-  elasticsearch:
+  logstash:
     hosts: ["$filebeat_forwarder"]
 shipper:
 logging:
