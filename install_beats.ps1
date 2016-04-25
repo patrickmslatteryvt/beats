@@ -29,7 +29,7 @@ $url_base = "https://download.elastic.co/beats"
 # Add-Type -AssemblyName System.IO.Compression.FileSystem
 # Function Expand-Archive { param([string]$zipfile, [string]$outpath) [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) }
 
-# different function for zip expansion
+# different function for zip expansion http://www.howtogeek.com/tips/how-to-extract-zip-files-using-powershell/
 function Expand-ZIPFile($file, $destination)
 {
   $shell = new-object -com shell.application
