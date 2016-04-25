@@ -53,7 +53,7 @@ filebeat:
       input_type: log
       document_type: IIS
       exclude_lines: ['^#']
-      exclude_files: ["L:\Octopus\*","L:\smtp\*"]
+      exclude_files: ['^L:\\Octopus\\.*','^L:\\smtp\\.*']
   registry_file: "C:/ProgramData/filebeat/registry"
 output:
   logstash:
