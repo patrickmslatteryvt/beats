@@ -147,5 +147,5 @@ Rename-Item -path $topbeat_yml -newName "$service.yml.original"
 CreateTopbeatYmlFile
 cd "$install_dir\$service"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-$service.ps1
-Set-Service $service -startuptype disable
+Set-Service $service -startuptype Disabled
 # Start-Service -name $service
