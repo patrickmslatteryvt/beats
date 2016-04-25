@@ -26,8 +26,19 @@ $topbeat_yml = "$install_dir\topbeat\topbeat.yml"
 $url_base = "https://download.elastic.co/beats"
 
 # Function to unzip files (Is built-in in PS v5)
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-Function Expand-Archive { param([string]$zipfile, [string]$outpath) [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) }
+# Add-Type -AssemblyName System.IO.Compression.FileSystem
+# Function Expand-Archive { param([string]$zipfile, [string]$outpath) [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) }
+
+# different function for zip expansion
+function Expand-ZIPFile($file, $destination)
+{
+  $shell = new-object -com shell.application
+  $zip = $shell.NameSpace($file)
+  foreach($item in $zip.items())
+  {
+    $shell.Namespace($destination).copyhere($item)
+  }
+}
 
 # Function using Here strings to cleanly write out the new Filebeat Yaml config file
 Function CreateFilebeatYmlFile {@"
@@ -87,7 +98,8 @@ New-Item -path "C:\Program Files\" -name "Elastic" -type directory
 # Install and enable Filebeat
 $service = "filebeat"
 Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+# Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Expand-ZIPFile "$install_dir\$service-$version-windows.zip" $install_dir
 Remove-Item "$install_dir\$service-$version-windows.zip"
 Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
 Rename-Item -path $filebeat_yml -newName "$service.yml.original"
@@ -105,7 +117,8 @@ Start-Service -name $service
 # Install and enable Winlogbeat
 $service = "winlogbeat"
 Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+# Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Expand-ZIPFile "$install_dir\$service-$version-windows.zip" $install_dir
 Remove-Item "$install_dir\$service-$version-windows.zip"
 Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
 Rename-Item -path $winlogbeat_yml -newName "$service.yml.original"
@@ -126,7 +139,8 @@ Start-Service -name $service
 # Install but disable topbeat
 $service = "topbeat"
 Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+# Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Expand-ZIPFile "$install_dir\$service-$version-windows.zip" $install_dir
 Remove-Item "$install_dir\$service-$version-windows.zip"
 Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
 Rename-Item -path $topbeat_yml -newName "$service.yml.original"
