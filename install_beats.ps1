@@ -15,6 +15,9 @@ param (
    [string]$version = "1.2.1"
 )
 
+# Import BitsTransfer
+Import-Module BitsTransfer
+
 # Set some default values
 $install_dir = "C:\Program Files\Elastic"
 $filebeat_yml = "$install_dir\filebeat\filebeat.yml"
@@ -23,8 +26,20 @@ $topbeat_yml = "$install_dir\topbeat\topbeat.yml"
 $url_base = "https://download.elastic.co/beats"
 
 # Function to unzip files (Is built-in in PS v5)
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-Function Expand-Archive { param([string]$zipfile, [string]$outpath) [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) }
+# Add-Type -AssemblyName System.IO.Compression.FileSystem
+# Function Expand-Archive { param([string]$zipfile, [string]$outpath) [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) }
+
+# different function for zip expansion http://www.howtogeek.com/tips/how-to-extract-zip-files-using-powershell/
+# the 0x14 flag silently overwrites
+function Expand-ZIPFile($file, $destination)
+{
+  $shell = new-object -com shell.application
+  $zip = $shell.NameSpace($file)
+  foreach($item in $zip.items())
+  {
+    $shell.Namespace($destination).copyhere($item, 0x14)
+  }
+}
 
 # Function using Here strings to cleanly write out the new Filebeat Yaml config file
 Function CreateFilebeatYmlFile {@"
@@ -36,12 +51,16 @@ filebeat:
         - L:\*\*.log
         - L:\*\*\*.log
       input_type: log
+      document_type: IIS
+      exclude_lines: ['^#']
+      exclude_files: ['^L:\\Octopus\\.*','^L:\\smtp\\.*']
   registry_file: "C:/ProgramData/filebeat/registry"
 output:
-  elasticsearch:
+  logstash:
     hosts: ["$filebeat_forwarder"]
 shipper:
 logging:
+  level: info
   files:
     rotateeverybytes: 10485760 # = 10MB
 "@ | Set-Content $filebeat_yml -encoding UTF8}
@@ -81,7 +100,8 @@ New-Item -path "C:\Program Files\" -name "Elastic" -type directory
 # Install and enable Filebeat
 $service = "filebeat"
 Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+# Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Expand-ZIPFile "$install_dir\$service-$version-windows.zip" $install_dir
 Remove-Item "$install_dir\$service-$version-windows.zip"
 Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
 Rename-Item -path $filebeat_yml -newName "$service.yml.original"
@@ -99,7 +119,8 @@ Start-Service -name $service
 # Install and enable Winlogbeat
 $service = "winlogbeat"
 Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+# Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Expand-ZIPFile "$install_dir\$service-$version-windows.zip" $install_dir
 Remove-Item "$install_dir\$service-$version-windows.zip"
 Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
 Rename-Item -path $winlogbeat_yml -newName "$service.yml.original"
@@ -120,12 +141,13 @@ Start-Service -name $service
 # Install but disable topbeat
 $service = "topbeat"
 Start-BitsTransfer -Source $url_base/$service/$service-$version-windows.zip -Destination $install_dir
-Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+# Expand-Archive "$install_dir\$service-$version-windows.zip" $install_dir
+Expand-ZIPFile "$install_dir\$service-$version-windows.zip" $install_dir
 Remove-Item "$install_dir\$service-$version-windows.zip"
 Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
 Rename-Item -path $topbeat_yml -newName "$service.yml.original"
 CreateTopbeatYmlFile
 cd "$install_dir\$service"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-$service.ps1
-Set-Service $service -startuptype disable
+Set-Service $service -startuptype Disabled
 # Start-Service -name $service

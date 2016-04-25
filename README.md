@@ -6,6 +6,7 @@ Powershell script to install the Elastic Beats collectors on Windows systems<br>
 Tested on Windows 2008 R2 and 2012 R2<br>
 Use like this:<br>
 ``` powershell
+Import-Module BitsTransfer
 mkdir C:\scripts
 Start-BitsTransfer -Source https://raw.githubusercontent.com/patrickmslatteryvt/beats/master/install_beats.ps1 -Destination "C:\scripts"
 cd C:\scripts
