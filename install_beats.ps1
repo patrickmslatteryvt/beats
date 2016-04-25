@@ -30,13 +30,14 @@ $url_base = "https://download.elastic.co/beats"
 # Function Expand-Archive { param([string]$zipfile, [string]$outpath) [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) }
 
 # different function for zip expansion http://www.howtogeek.com/tips/how-to-extract-zip-files-using-powershell/
+# the 0x14 flag silently overwrites
 function Expand-ZIPFile($file, $destination)
 {
   $shell = new-object -com shell.application
   $zip = $shell.NameSpace($file)
   foreach($item in $zip.items())
   {
-    $shell.Namespace($destination).copyhere($item)
+    $shell.Namespace($destination).copyhere($item, 0x14)
   }
 }
 
