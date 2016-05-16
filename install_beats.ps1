@@ -93,6 +93,25 @@ logging:
     keepfiles: 7
 "@ | Set-Content $topbeat_yml -encoding UTF8}
 
+Function CreateWinLogbeatYmlFile {@"
+winlogbeat:
+  registry_file: C:/ProgramData/winlogbeat/registry
+  event_logs:
+    - name: Application
+      ignore_older: 72h 
+    - name: Security
+    - name: System
+output:
+  logstash:
+    hosts: ["$winlogbeat_forwarder"]
+shipper:
+logging:
+  to_files: true
+  level: info
+  files:
+    rotateeverybytes: 10485760 # = 10MB
+"@ | Set-Content $winlogbeat_yml -encoding UTF8}
+
 # Create an install directory
 New-Item -path "C:\Program Files\" -name "Elastic" -type directory
 
@@ -126,11 +145,8 @@ Remove-Item "$install_dir\$service-$version-windows.zip"
 Rename-Item -path "$install_dir\$service-$version-windows" -newName $service
 Rename-Item -path $winlogbeat_yml -newName "$service.yml.original"
 
-# Search and replace the forwarder value
-$oldfile = "$install_dir\winlogbeat\winlogbeat.yml.original"
-$newfile = "$install_dir\winlogbeat\winlogbeat.yml"
-$text = (Get-Content -Path $oldfile -ReadCount 0) -join "`n"
-$text -replace 'localhost:9200', $winlogbeat_forwarder | Set-Content -Path $newfile
+# Create a new very minimal config file
+CreateWinLogbeatYmlFile
 
 cd "$install_dir\$service"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-$service.ps1
