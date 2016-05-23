@@ -54,7 +54,8 @@ filebeat:
       document_type: IIS
       exclude_lines: ['^#']
       exclude_files: ['^L:\\Octopus\\.*','^L:\\smtp\\.*']
-      ignore_older: 168h
+      scan_frequency: 20s
+      ignore_older: 24h
   registry_file: "C:/ProgramData/filebeat/registry"
 output:
   logstash:
@@ -150,8 +151,8 @@ CreateWinLogbeatYmlFile
 
 cd "$install_dir\$service"
 PowerShell.exe -ExecutionPolicy UnRestricted -File .\install-service-$service.ps1
-Set-Service $service -startuptype automatic
-Start-Service -name $service
+Set-Service $service -startuptype Disabled
+# Start-Service -name $service
 
 ################################################################################
 
